@@ -1,0 +1,23 @@
+{
+  "name": "docker-gen",
+  "version": "1.0.0",
+  "description": "Auto-detect tech stack and generate optimized Dockerfile, docker-compose.yml, and .dockerignore with security best practices.",
+  "author": "showkkd133",
+  "license": "MIT",
+  "homepage": "https://github.com/showkkd133/docker-gen-skill",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/showkkd133/docker-gen-skill.git"
+  },
+  "keywords": [
+    "docker",
+    "dockerfile",
+    "docker-compose",
+    "containerization",
+    "devops"
+  ],
+  "categories": [
+    "developer-tools",
+    "devops"
+  ]
+}
