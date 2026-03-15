@@ -19,5 +19,14 @@
   "categories": [
     "developer-tools",
     "devops"
+  ],
+  "triggers": [
+    "生成 docker",
+    "容器化",
+    "dockerize",
+    "generate dockerfile",
+    "docker compose",
+    "给项目加 docker",
+    "create docker config"
   ]
 }

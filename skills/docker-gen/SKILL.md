@@ -1,3 +1,16 @@
+---
+name: docker-gen
+description: 自动检测技术栈，生成优化的 Dockerfile、docker-compose.yml 和 .dockerignore
+triggers:
+  - "生成 docker"
+  - "容器化"
+  - "dockerize"
+  - "generate dockerfile"
+  - "docker compose"
+  - "给项目加 docker"
+  - "create docker config"
+---
+
 # Skill: Docker 配置智能生成
 
 自动检测项目技术栈，生成优化的 Dockerfile、docker-compose.yml 和 .dockerignore。支持开发和生产双环境配置。
@@ -17,18 +30,18 @@
 
 ```bash
 # 检测语言和包管理器
-ls package.json bun.lockb yarn.lock pnpm-lock.yaml package-lock.json 2>/dev/null
+ls package.json bun.lockb bun.lock yarn.lock pnpm-lock.yaml package-lock.json 2>/dev/null
 ls pyproject.toml requirements.txt Pipfile setup.py uv.lock 2>/dev/null
 ls go.mod go.sum 2>/dev/null
 ls Cargo.toml Cargo.lock 2>/dev/null
 ls pom.xml build.gradle build.gradle.kts 2>/dev/null
 
 # Node.js/Bun 包管理器检测（按优先级）
-# 1. bun.lockb → bun
+# 1. bun.lockb / bun.lock → bun
 # 2. pnpm-lock.yaml → pnpm
 # 3. yarn.lock → yarn
 # 4. package-lock.json → npm
-if [ -f "bun.lockb" ]; then
+if [ -f bun.lockb ] || [ -f bun.lock ]; then
   PKG_MANAGER=bun
 elif [ -f "pnpm-lock.yaml" ]; then
   PKG_MANAGER=pnpm
@@ -154,7 +167,7 @@ RUN --mount=type=cache,target=/root/.yarn/berry/cache \
     yarn install --immutable
 
 # ===== bun 缓存优化 =====
-COPY package.json bun.lockb ./
+COPY package.json bun.lock* bun.lockb* ./
 RUN bun install --frozen-lockfile --production
 ```
 
@@ -169,13 +182,13 @@ RUN bun install --frozen-lockfile --production
 # --- Stage 1: Dependencies ---
 FROM oven/bun:1-alpine AS deps
 WORKDIR /app
-COPY package.json bun.lockb ./
+COPY package.json bun.lock* bun.lockb* ./
 RUN bun install --frozen-lockfile --production
 
 # --- Stage 2: Build ---
 FROM oven/bun:1-alpine AS builder
 WORKDIR /app
-COPY package.json bun.lockb ./
+COPY package.json bun.lock* bun.lockb* ./
 RUN bun install --frozen-lockfile
 COPY . .
 RUN bun run build
@@ -335,17 +348,13 @@ services:
     ports:
       - "8080:8080"
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"]
+      test: ["/server", "healthcheck"]
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       retries: 3
-      start_period: 10s
-    # 注意：CMD-SHELL 在 docker-compose 的 healthcheck 中由 Docker daemon 执行，
-    # 不依赖容器内的 shell。但 wget/curl 仍需在容器内可用。
-    # 对于 scratch 容器，推荐以下方案之一：
-    #   方案 1: 应用实现 healthcheck 子命令
-    #   healthcheck:
-    #     test: ["/server", "healthcheck"]
+    # 如果使用 alpine/distroless 基础镜像，可以使用：
+    # test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+    # 对于 scratch 容器，还可考虑：
     #   方案 2: 使用外部探针（如 Docker Desktop、Kubernetes liveness probe）
     #   方案 3: 改用 distroless + 安装 grpc_health_probe（适用于 gRPC 服务）
 ```
@@ -545,7 +554,7 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}", "ping"]
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping | grep -q PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -699,7 +708,7 @@ services:
 > ```dockerfile
 > FROM oven/bun:1-alpine AS dev
 > WORKDIR /app
-> COPY package.json bun.lockb ./
+> COPY package.json bun.lock* bun.lockb* ./
 > RUN bun install --frozen-lockfile  # 安装全部依赖（含 devDependencies）
 > CMD ["bun", "run", "dev"]
 > ```
